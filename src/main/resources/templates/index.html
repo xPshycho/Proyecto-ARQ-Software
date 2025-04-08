@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Muebles - Thelarte</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
+        .foto-thumb { max-width: 80px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Gestión de Muebles</h1>
+
+    <!-- Formulario para agregar mueble -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            Añadir nuevo mueble
+        </div>
+        <div class="card-body">
+            <form id="muebleForm">
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="nombre" placeholder="Nombre del mueble" required>
+                </div>
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción</label>
+                    <input type="text" class="form-control" id="descripcion" placeholder="Descripción del mueble" required>
+                </div>
+                <div class="mb-3">
+                    <label for="precio" class="form-label">Precio</label>
+                    <input type="number" step="0.01" class="form-control" id="precio" placeholder="Precio" required>
+                </div>
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label">Cantidad</label>
+                    <input type="number" class="form-control" id="cantidad" placeholder="Cantidad disponible" required>
+                </div>
+                <!-- Campo para subir múltiples imágenes -->
+                <div class="mb-3">
+                    <label for="fotos" class="form-label">Fotos</label>
+                    <input type="file" class="form-control" id="fotos" accept="image/*" multiple>
+                </div>
+                <button type="submit" class="btn btn-success">Guardar Mueble</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla para listar muebles -->
+    <div class="card">
+        <div class="card-header bg-secondary text-white">
+            Lista de Muebles
+        </div>
+        <div class="card-body">
+            <table class="table table-striped" id="muebleTable">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Precio</th>
+                    <th>Cantidad</th>
+                    <th>Fotos</th>
+                    <th>Acciones</th>
+                </tr>
+                </thead>
+                <tbody id="muebleTableBody">
+                <!-- Se llenará dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const apiUrl = '/api/muebles';
+
+    // Array para almacenar las imágenes en Base64
+    let fotosBase64 = [];
+
+    // Escucha el cambio en el input para múltiples archivos
+    document.getElementById('fotos').addEventListener('change', function(event) {
+        fotosBase64 = []; // Reinicia el array
+        const files = event.target.files;
+        if(files.length > 0) {
+            let filesProcessed = 0;
+            for(let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    fotosBase64.push(e.target.result);
+                    filesProcessed++;
+                    // Si se han procesado todos los archivos, puedes ejecutar alguna acción (opcional)
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+
+    // Función para cargar muebles y actualizar la tabla
+    async function fetchMuebles() {
+        try {
+            const response = await fetch(apiUrl);
+            const muebles = await response.json();
+            const tbody = document.getElementById('muebleTableBody');
+            tbody.innerHTML = '';
+
+            muebles.forEach(mueble => {
+                const tr = document.createElement('tr');
+                let fotosHtml = 'Sin foto';
+                if(mueble.fotos && mueble.fotos.length > 0) {
+                    fotosHtml = mueble.fotos.map(src => `<img src="${src}" alt="Foto" class="foto-thumb">`).join('');
+                }
+                tr.innerHTML = `
+            <td>${mueble.id}</td>
+            <td>${mueble.nombre}</td>
+            <td>${mueble.descripcion}</td>
+            <td>${mueble.precio}</td>
+            <td>${mueble.cantidad}</td>
+            <td>${fotosHtml}</td>
+            <td>
+              <button class="btn btn-sm btn-warning" onclick="editarMueble('${mueble.id}')">Editar</button>
+              <button class="btn btn-sm btn-danger" onclick="eliminarMueble('${mueble.id}')">Eliminar</button>
+            </td>
+          `;
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error('Error al obtener muebles:', error);
+        }
+    }
+
+    // Inserción de un nuevo mueble
+    document.getElementById('muebleForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const nuevoMueble = {
+            nombre: document.getElementById('nombre').value,
+            descripcion: document.getElementById('descripcion').value,
+            precio: parseFloat(document.getElementById('precio').value),
+            cantidad: parseInt(document.getElementById('cantidad').value),
+            fotos: fotosBase64 // Se incluye el array de fotos en Base64
+        };
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(nuevoMueble)
+            });
+            if(response.ok) {
+                this.reset();
+                fotosBase64 = [];
+                document.getElementById('fotos').value = ''; // Resetea el input de archivos
+                fetchMuebles();
+            } else {
+                alert('Error al insertar el mueble.');
+            }
+        } catch (error) {
+            console.error('Error al insertar mueble:', error);
+        }
+    });
+
+    // Función para eliminar un mueble
+    async function eliminarMueble(id) {
+        if(confirm('¿Deseas eliminar este mueble?')) {
+            try {
+                const response = await fetch(`${apiUrl}/${id}`, { method: 'DELETE' });
+                if(response.ok) {
+                    fetchMuebles();
+                } else {
+                    alert('Error al eliminar el mueble.');
+                }
+            } catch (error) {
+                console.error('Error al eliminar mueble:', error);
+            }
+        }
+    }
+
+    // Función para editar un mueble (simple ejemplo usando prompt)
+    async function editarMueble(id) {
+        const nuevoNombre = prompt('Introduce el nuevo nombre:');
+        if(nuevoNombre) {
+            try {
+                const res = await fetch(`${apiUrl}/${id}`);
+                if(res.ok) {
+                    const mueble = await res.json();
+                    mueble.nombre = nuevoNombre;
+                    const updateRes = await fetch(`${apiUrl}/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(mueble)
+                    });
+                    if(updateRes.ok) {
+                        fetchMuebles();
+                    } else {
+                        alert('Error al actualizar el mueble.');
+                    }
+                }
+            } catch (error) {
+                console.error('Error en la edición:', error);
+            }
+        }
+    }
+
+    // Inicializa la carga de muebles
+    fetchMuebles();
+</script>
+</body>
+</html>

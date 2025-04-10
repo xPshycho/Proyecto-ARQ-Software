@@ -124,7 +124,7 @@
             <td>${mueble.cantidad}</td>
             <td>${fotosHtml}</td>
             <td>
-              <button class="btn btn-sm btn-warning" onclick="editarMueble('${mueble.id}')">Editar</button>
+              <a href="/editar?id=${mueble.id}" class="btn btn-sm btn-warning">Editar</a>
               <button class="btn btn-sm btn-danger" onclick="eliminarMueble('${mueble.id}')">Eliminar</button>
             </td>
           `;

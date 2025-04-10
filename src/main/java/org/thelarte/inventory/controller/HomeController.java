@@ -10,4 +10,9 @@ public class HomeController {
     public String showHome() {
         return "index";  // Busca el archivo index.html en src/main/resources/templates
     }
+
+    @GetMapping("/editar")
+    public String vistaEditar() {
+        return "editar";  // templates/editar.html
+    }
 }

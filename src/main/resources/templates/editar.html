@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Muebles - Thelarte</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
+        .foto-thumb { max-width: 80px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Editor de Muebles</h1>
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">Editar mueble</div>
+        <div class="card-body">
+            <form id="muebleForm">
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="nombre" required>
+                </div>
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción</label>
+                    <input type="text" class="form-control" id="descripcion" required>
+                </div>
+                <div class="mb-3">
+                    <label for="precio" class="form-label">Precio</label>
+                    <input type="number" step="0.01" class="form-control" id="precio" required>
+                </div>
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label">Cantidad</label>
+                    <input type="number" class="form-control" id="cantidad" required>
+                </div>
+                <div class="mb-3">
+                    <label for="fotos" class="form-label">Fotos (puedes actualizar)</label>
+                    <input type="file" class="form-control" id="fotos" accept="image/*" multiple>
+                    <div id="fotosActuales" class="mt-2 d-flex flex-wrap"></div>
+                </div>
+                <button type="submit" class="btn btn-success">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let muebleId = obtenerParametroUrl('id');
+    let fotosBase64 = [];
+
+    function obtenerParametroUrl(nombre) {
+        const url = new URL(window.location.href);
+        return url.searchParams.get(nombre);
+    }
+
+    // Cargar el mueble cuando la página se carga
+    async function cargarMueble() {
+        if (!muebleId) {
+            alert('ID de mueble no especificado en la URL');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/muebles/editar/${muebleId}`);
+            if (!res.ok) throw new Error('No se pudo cargar el mueble');
+            const mueble = await res.json();
+
+            // Rellenar los campos del formulario con los datos del mueble
+            document.getElementById('nombre').value = mueble.nombre;
+            document.getElementById('descripcion').value = mueble.descripcion;
+            document.getElementById('precio').value = mueble.precio;
+            document.getElementById('cantidad').value = mueble.cantidad;
+
+            // Mostrar las fotos actuales
+            const fotosContainer = document.getElementById('fotosActuales');
+            fotosContainer.innerHTML = '';
+            if (mueble.fotos && mueble.fotos.length > 0) {
+                mueble.fotos.forEach(foto => {
+                    const img = document.createElement('img');
+                    img.src = foto;
+                    img.className = 'foto-thumb';
+                    fotosContainer.appendChild(img);
+                });
+                fotosBase64 = mueble.fotos; // Cargar fotos existentes
+            }
+
+        } catch (error) {
+            console.error('Error al cargar mueble:', error);
+        }
+    }
+
+    // Manejar la carga de nuevas fotos
+    document.getElementById('fotos').addEventListener('change', function(event) {
+        fotosBase64 = [];
+        const files = event.target.files;
+        const promises = [];
+        for (let file of files) {
+            const reader = new FileReader();
+            const promise = new Promise((resolve, reject) => {
+                reader.onload = function(e) {
+                    fotosBase64.push(e.target.result);
+                    resolve();
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            promises.push(promise);
+        }
+        Promise.all(promises).then(() => {
+            console.log('Todas las fotos se han cargado');
+        }).catch(error => {
+            console.error('Error al cargar las fotos:', error);
+        });
+    });
+
+    // Enviar los cambios al servidor
+    document.getElementById('muebleForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const datosActualizados = {
+            nombre: document.getElementById('nombre').value,
+            descripcion: document.getElementById('descripcion').value,
+            precio: parseFloat(document.getElementById('precio').value),
+            cantidad: parseInt(document.getElementById('cantidad').value),
+            fotos: fotosBase64
+        };
+
+        try {
+            const res = await fetch(`/api/muebles/editar/${muebleId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosActualizados)
+            });
+
+            if (res.ok) {
+                alert('Mueble actualizado correctamente');
+                window.location.href = "/"; // 🔁 Redirección al home
+
+            } else {
+                alert('Error al actualizar el mueble.');
+            }
+        } catch (error) {
+            console.error('Error al guardar cambios:', error);
+        }
+    });
+
+    // Cargar los datos del mueble al cargar la página
+    cargarMueble();
+</script>
+
+</body>
+</html>
